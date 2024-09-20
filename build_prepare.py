@@ -1,9 +1,3 @@
-r"""
-Run as python3 build_prepare.py --cpython-openssl
-then for each updated dependency run
-cmd.exe build\build_xxx.cmd
-"""
-
 import os
 import shutil
 import stat
@@ -83,7 +77,7 @@ header = [
 # dependencies, listed in order of compilation
 deps = {
     "boehm": {
-        "url": "https://hboehm.info/gc/gc_source/gc-7.1.tar.gz",
+        "url": "https://www.hboehm.info/gc/gc_source/gc-7.1.tar.gz",
         "filename": "gc-7.1.tar.gz",
         "dir": "gc-7.1",
         "patch": {
@@ -111,21 +105,21 @@ deps = {
         "bins": [r"{boehm_target}.dll"],
     },
     "zlib": {
-        "url": "https://zlib.net/zlib131.zip",
-        "filename": "zlib131.zip",
-        "dir": "zlib-1.3.1",
+        "url": "https://zlib.net/zlib1211.zip",
+        "filename": "zlib1211.zip",
+        "dir": "zlib-1.2.11",
         "build": [
             cmd_nmake(r"win32\Makefile.msc", "clean"),
             cmd_nmake(r"win32\Makefile.msc"),
         ],
-        "headers": ["zconf.h", "zlib.h", "zutil.h"],
+        "headers": [r"z*.h"],
         "libs": [r"zlib.lib"],
         "bins": [r"zlib1.dll"],
     },
     "bz2": {
-        "url": "https://github.com/python/cpython-source-deps/archive/bzip2-1.0.8.zip",
-        "filename": "bzip2-1.0.8.zip",
-        "dir": "cpython-source-deps-bzip2-1.0.8",
+        "url": "https://github.com/python/cpython-source-deps/archive/bzip2-1.0.6.zip",
+        "filename": "bzip2-1.0.6.zip",
+        "dir": "cpython-source-deps-bzip2-1.0.6",
         "build": [
             cmd_nmake(r"makefile.msc", "clean"),
             cmd_nmake(r"makefile.msc"),
@@ -134,22 +128,22 @@ deps = {
         "libs": [r"libbz2.lib"],
     },
     "sqlite3": {
-        "url": "https://sqlite.org/2022/sqlite-amalgamation-3400100.zip",
-        "filename": "sqlite-amalgamation-3400100.zip",
-        "dir": "sqlite-amalgamation-3400100",
+        "url": "https://sqlite.org/2021/sqlite-amalgamation-3350500.zip",
+        "filename": "sqlite-amalgamation-3350500.zip",
+        "dir": "sqlite-amalgamation-3350500",
         "build": [
             cmd_copy(r"{winbuild_dir}\sqlite3.nmake", r"makefile.msc"),
             cmd_nmake(r"makefile.msc", "clean"),
             cmd_nmake(r"makefile.msc"),
         ],
-        "headers": ["sqlite3.h", "sqlite3ext.h"],
-        "libs": [r"sqlite3.lib"],
-        "bins": [r"sqlite3.dll"],
+        "headers": [r"sql*.h"],
+        "libs": [r"*.lib"],
+        "bins": [r"*.dll"],
     },
     "libexpat": {
-        "url": "https://github.com/libexpat/libexpat/archive/R_2_5_0.zip",
-        "filename": "R_2_5_0.zip",
-        "dir": "libexpat-R_2_5_0",
+        "url": "https://github.com/libexpat/libexpat/archive/R_2_2_4.zip",
+        "filename": "R_2_2_4.zip",
+        "dir": "libexpat-R_2_2_4",
         "patch": {
             r"expat\lib\xmltok.c": {
                 "  const ptrdiff_t bytesStorable = toLim - *toP;\n":
@@ -163,31 +157,30 @@ deps = {
             },
         },
         "build": [
-            cmd_cd(r"expat"),
-            "mkdir build",
-            "cd build",
-            "cmake ..",
-            "cmake --build . --config Release",
+            cmd_cd(r"expat\lib"),
+            cmd_copy(r"{winbuild_dir}\libexpat.nmake", r"makefile.msc"),
+            cmd_nmake(r"makefile.msc", "clean"),
+            cmd_nmake(r"makefile.msc"),
         ],
-        "headers": [r"..\lib\expat.h", r"..\lib\expat_external.h"],
-        "libs": [r"Release\libexpat.lib"],
-        "bins": [r"Release\libexpat.dll"],
+        "headers": [r"expat.h", r"expat_external.h"],
+        "libs": [r"libexpat.lib"],
+        "bins": [r"libexpat.dll"],
     },
     "openssl-cpython": {
         # use pre-built OpenSSL from CPython
-        "url": "https://github.com/python/cpython-bin-deps/archive/openssl-bin-1.1.1t.tar.gz",
-        "filename": "openssl-bin-1.1.1t.tar.gz",
-        "dir": "cpython-bin-deps-openssl-bin-1.1.1t",
+        "url": "https://github.com/python/cpython-bin-deps/archive/openssl-bin-1.1.1g.tar.gz",
+        "filename": "openssl-bin-1.1.1g.tar.gz",
+        "dir": "cpython-bin-deps-openssl-bin-1.1.1g",
         "build": [
             cmd_xcopy(r"{cpython_arch}\include", "{inc_dir}"),
         ],
         "libs": [r"{cpython_arch}\lib*.lib"],
         "bins": [r"{cpython_arch}\lib*.dll"],
     },
-    "unused openssl": {
-        "url": "https://www.openssl.org/source/openssl-1.1.1t.tar.gz",
-        "filename": "openssl-1.1.1t.tar.gz",
-        "dir": "openssl-1.1.1t",
+    "openssl": {
+        "url": "https://www.openssl.org/source/openssl-1.1.1k.tar.gz",
+        "filename": "openssl-1.1.1k.tar.gz",
+        "dir": "openssl-1.1.1k",
         "build": [
             "perl configure {openssl_arch} no-asm",
             cmd_nmake(),
@@ -236,8 +229,8 @@ deps = {
             cmd_set("COMPILERFLAGS", "-DWINVER=0x0500"),
             cmd_set("DEBUG", "0"),
             cmd_set("INSTALLDIR", r"{tcltk_dir}"),
-            cmd_set("MACHINE", "{tcl_arch}"),
             cmd_set("TCLDIR", r"{build_dir}\tcl8.6.9"),
+            cmd_set("MACHINE", "{tcl_arch}"),
             cmd_nmake("makefile.vc", "clean"),
             cmd_nmake("makefile.vc", "all"),
             cmd_nmake("makefile.vc", "install"),
@@ -292,6 +285,7 @@ def find_msvs2015():
         print("Visual Studio vcvarsall not found")
         return None
     # ask for SDK 8.1, default SDK 10 is missing RC.exe
+    # You can find it https://developer.microsoft.com/en-us/windows/downloads/sdk-archive/ 
     vs["header"].append('call "{}" {{vcvars_arch}} 8.1'.format(vcvarsall))
 
     return vs
@@ -502,9 +496,9 @@ if __name__ == "__main__":
     winbuild_dir = os.path.dirname(os.path.realpath(__file__))
 
     verbose = False
-    disabled = ["openssl"]
+    disabled = ["openssl-cpython"]
     depends_dir = os.path.join(winbuild_dir, "cache")
-    architecture = "x64"
+    architecture = "x86"
     build_dir = os.path.join(winbuild_dir, "build")
     force_tk = False
     for arg in sys.argv[1:]:
@@ -516,9 +510,9 @@ if __name__ == "__main__":
             architecture = arg[15:]
         elif arg.startswith("--dir="):
             build_dir = os.path.abspath(arg[6:])
-        elif arg == "--openssl":
-            disabled.append("openssl-cpython")
-            disabled.remove("openssl")
+        elif arg == "--cpython-openssl":
+            disabled.remove("openssl-cpython")
+            disabled.append("openssl")
         elif arg == "--with-tk":
             force_tk = True
         elif arg == "--no-boehm":
@@ -548,11 +542,11 @@ if __name__ == "__main__":
     print("Using output directory:", build_dir)
 
     # build directory for *.h files
-    inc_dir = os.path.abspath("include")
+    inc_dir = os.path.join(build_dir, "include")
     # build directory for *.lib files
-    lib_dir = os.path.abspath("lib")
+    lib_dir = os.path.join(build_dir, "lib")
     # build directory for *.bin files
-    bin_dir = os.path.abspath("bin")
+    bin_dir = os.path.join(build_dir, "bin")
     # build directory for auxiliary include files (win32.mak)
     aux_dir = os.path.join(build_dir, "auxiliary")
 
@@ -568,8 +562,7 @@ if __name__ == "__main__":
     if os.path.isdir(build_dir):
         shutil.rmtree(build_dir, onerror=rmtree_onerror)
     for path in [build_dir, inc_dir, lib_dir, bin_dir, aux_dir, tcltk_dir]:
-        if not os.path.exists(path):
-            os.makedirs(path)
+        os.makedirs(path)
 
     prefs = {
         # Target architecture
@@ -602,7 +595,7 @@ if __name__ == "__main__":
         ],
     )
 
-    build_dep()
+    build_all()
 
     if "boehm" not in disabled:
         print()

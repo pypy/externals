@@ -171,7 +171,7 @@
 #define SIZEOF_LONG_DOUBLE 8
 
 /* The size of `size_t', as computed by sizeof. */
-#define SIZEOF_SIZE_T 8
+#define SIZEOF_SIZE_T 4
 
 /* If using the C implementation of alloca, define if you know the
    direction of stack growth for your system; otherwise it will be
@@ -185,7 +185,7 @@
 #define STDC_HEADERS 1
 
 /* Define if symbols are underscored. */
-/* #undef SYMBOL_UNDERSCORE */
+#define SYMBOL_UNDERSCORE 1
 
 /* Define this if you are using Purify and want to suppress spurious messages.
    */

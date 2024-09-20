@@ -1,5 +1,5 @@
 
-# for libexpat version 2.2.6 only!
+# for libexpat version 2.2.4 only!
 
 
 # output names
@@ -9,7 +9,7 @@ IMPLIB=libexpat_i.lib
 
 
 CC=cl.exe
-CFLAGS=/nologo /MD /O2 /I. /DXML_DTD
+CFLAGS=/nologo /MD /O2
 
 LD=link.exe
 LDFLAGS=/nologo
@@ -19,20 +19,17 @@ ARFLAGS=/nologo
 
 
 !IFDEF DEBUG
-CFLAGS=/nologo /MD /O0 /Ob0 /Zi /I. /DXML_DTD
+CFLAGS=/nologo /MD /O0 /Ob0 /Zi
 LDFLAGS=/nologo /debug
 !ENDIF
 
 
 # target .obj files
-OBJS=xmlparse.obj xmlrole.obj xmltok.obj xmltok_impl.obj xmltok_ns.obj
+OBJS=loadlibrary.obj xmlparse.obj xmlrole.obj xmltok.obj xmltok_impl.obj xmltok_ns.obj
 
 
 # targets
-all: expat_config.h $(STATICLIB) $(SHAREDLIB) $(IMPLIB)
-
-expat_config.h:
-    touch expat_config.h
+all: $(STATICLIB) $(SHAREDLIB) $(IMPLIB)
 
 $(IMPLIB): $(SHAREDLIB)
 

@@ -1,0 +1,56 @@
+
+# for sqlite3
+
+
+# output names
+#STATICLIB=sqlite3_s.lib
+SHAREDLIB=sqlite3.dll
+IMPLIB=sqlite3.lib
+
+
+FLAGS=-DSQLITE_ENABLE_JSON1 -DSQLITE_ENABLE_FTS4 -DSQLITE_ENABLE_FTS5 \
+      -DSQLITE_ENABLE_RTREE -DSQLITE_ENABLE_MATH_FUNCTIONS \
+      -DSQLITE_API=__declspec(dllexport)
+
+CC=cl.exe
+CFLAGS=/nologo /MD /O2 $(FLAGS)
+
+LD=link.exe
+LDFLAGS=/nologo
+
+#AR=lib.exe
+#ARFLAGS=/nologo
+
+
+!IFDEF DEBUG
+CFLAGS=/nologo /MD /O0 /Ob0 /Zi
+LDFLAGS=/nologo /debug
+!ENDIF
+
+
+# target .obj files
+OBJS=sqlite3.obj
+
+
+# targets
+all: $(STATICLIB) $(SHAREDLIB) $(IMPLIB)
+
+$(IMPLIB): $(SHAREDLIB)
+
+$(SHAREDLIB): $(OBJS)
+    $(LD) $(LDFLAGS) -dll -implib:$(IMPLIB) -out:$@ $(OBJS)
+
+#$(STATICLIB): $(OBJS)
+#	$(AR) $(ARFLAGS) -out:$@ $(OBJS)
+
+.c.obj:
+    $(CC) $(CFLAGS) /c $<
+
+
+clean:
+#   -del $(STATICLIB)
+	-del $(SHAREDLIB)
+	-del $(IMPLIB)
+	-del *.obj
+	-del *.exp
+	-del *.pdb

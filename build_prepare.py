@@ -177,7 +177,7 @@ deps = {
         # use pre-built OpenSSL from CPython
         "url": "https://github.com/python/cpython-bin-deps/archive/openssl-bin-3.5.9.tar.gz",
         "filename": "openssl-bin-3.5.9.tar.gz",
-        "dir": "cpython-bin-deps-openssl-bin-.3.5.9",
+        "dir": "cpython-bin-deps-openssl-bin-3.5.9",
         "build": [
             cmd_xcopy(r"{cpython_arch}\include", "{inc_dir}"),
         ],

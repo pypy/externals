@@ -175,26 +175,14 @@ deps = {
     },
     "openssl-cpython": {
         # use pre-built OpenSSL from CPython
-        "url": "https://github.com/python/cpython-bin-deps/archive/openssl-bin-1.1.1t.tar.gz",
-        "filename": "openssl-bin-1.1.1t.tar.gz",
-        "dir": "cpython-bin-deps-openssl-bin-1.1.1t",
+        "url": "https://github.com/python/cpython-bin-deps/archive/openssl-bin-3.5.9.tar.gz",
+        "filename": "openssl-bin-3.5.9.tar.gz",
+        "dir": "cpython-bin-deps-openssl-bin-.3.5.9",
         "build": [
             cmd_xcopy(r"{cpython_arch}\include", "{inc_dir}"),
         ],
         "libs": [r"{cpython_arch}\lib*.lib"],
         "bins": [r"{cpython_arch}\lib*.dll"],
-    },
-    "unused openssl": {
-        "url": "https://www.openssl.org/source/openssl-1.1.1t.tar.gz",
-        "filename": "openssl-1.1.1t.tar.gz",
-        "dir": "openssl-1.1.1t",
-        "build": [
-            "perl configure {openssl_arch} no-asm",
-            cmd_nmake(),
-            cmd_xcopy(r"include\openssl", "{inc_dir}\openssl"),
-        ],
-        "libs": [r"libcrypto.lib", r"libssl.lib"],
-        "bins": [r"libcrypto-1_1.dll", r"libssl-1_1.dll"],
     },
     "lzma": {
         "url": "https://tukaani.org/xz/xz-5.0.5-windows.zip",

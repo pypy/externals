@@ -1,0 +1,236 @@
+
+# nmake makefile for zlib-ng 2.2.x, built in zlib-compat mode so that the
+# results are drop-in replacements for the stock zlib build: a static
+# zlib.lib and a shared zlib1.dll exporting the classic zlib API.
+#
+# The source list and the feature defines follow PCbuild/zlib-ng.vcxproj from
+# https://github.com/python/cpython/pull/131438; the generated-header and
+# DLL plumbing follows zlib-ng's own win32/Makefile.msc.
+#
+# Usage, from the root of an unpacked zlib-ng source tree:
+#
+#     nmake -nologo -f makefile.msc
+#
+# The AVX-512 code paths need /arch:AVX512, which VS2015 does not have.
+# Drop them with:
+#
+#     nmake -nologo -f makefile.msc AVX512=
+#
+# Differences from the CPython project file, which builds a static library
+# only, for x86/x64/ARM/ARM64:
+#   * x86/x64 only, no ARM sources.
+#   * gzlib.c/gzread.c/gzwrite.c are compiled, because WITH_GZFILEOP is
+#     defined and the zlib-compat .def file exports the gz* functions.
+#   * -DHAVE_BUILTIN_ASSUME_ALIGNED is not defined: it makes zbuild.h use
+#     __builtin_assume_aligned(), which MSVC does not provide.  It is only
+#     an optimization hint.  zlib-ng's CMake build probes for it and leaves
+#     it undefined for MSVC too.
+#   * -DNO_FSEEKO is not defined, nothing in zlib-ng 2.2.4 reads it.
+#   * /arch:AVX2 and /arch:AVX512 are passed per source file, as zlib-ng's
+#     CMake build does, instead of to the whole library.  Passing them
+#     globally lets the compiler use AVX2 in the baseline code paths, which
+#     defeats the runtime CPU dispatch in functable.c and crashes on CPUs
+#     without AVX2.
+
+
+# The toplevel directory of the source tree.
+TOP = .
+
+# output names
+STATICLIB = zlib.lib
+SHAREDLIB = zlib1.dll
+IMPLIB    = zdll.lib
+
+# set to nothing to leave out the AVX-512 code paths (see above)
+AVX512 = yes
+
+CC = cl.exe
+LD = link.exe
+AR = lib.exe
+RC = rc.exe
+CP = copy /y
+
+INCLUDES = -I$(TOP) -I$(TOP)/arch/generic -I$(TOP)/arch/x86
+
+WFLAGS = \
+	-DZLIB_COMPAT \
+	-DWITH_GZFILEOP \
+	-D_CRT_SECURE_NO_DEPRECATE \
+	-D_CRT_NONSTDC_NO_DEPRECATE \
+	-DX86_FEATURES \
+	-DX86_HAVE_XSAVE_INTRIN \
+	-DX86_SSE2 \
+	-DX86_SSSE3 \
+	-DX86_SSE42 \
+	-DX86_PCLMULQDQ_CRC \
+	-DX86_AVX2
+
+CFLAGS  = /nologo /MD /O2 /W3 /utf-8 /wd4054 /wd4206 /wd4324 $(INCLUDES)
+LDFLAGS = /nologo /incremental:no /opt:ref
+ARFLAGS = /nologo
+RCFLAGS = /dWIN32 /r /i $(TOP)
+
+AVX2FLAG   = /arch:AVX2
+AVX512FLAG = /arch:AVX512
+
+DEFFILE = $(TOP)/win32/zlibcompat.def
+RCFILE  = $(TOP)/win32/zlib1.rc
+RESFILE = zlib1.res
+
+GENERATED = zlib.h zconf.h zlib_name_mangling.h
+
+
+!IFDEF DEBUG
+CFLAGS  = /nologo /MD /Od /Ob0 /Zi /W3 /utf-8 /wd4054 /wd4206 /wd4324 $(INCLUDES)
+WFLAGS  = $(WFLAGS) -DZLIB_DEBUG
+LDFLAGS = /nologo /debug
+!ENDIF
+
+
+# target .obj files
+OBJS = \
+	adler32.obj \
+	compress.obj \
+	cpu_features.obj \
+	crc32.obj \
+	crc32_braid_comb.obj \
+	deflate.obj \
+	deflate_fast.obj \
+	deflate_huff.obj \
+	deflate_medium.obj \
+	deflate_quick.obj \
+	deflate_rle.obj \
+	deflate_slow.obj \
+	deflate_stored.obj \
+	functable.obj \
+	gzlib.obj \
+	gzread.obj \
+	gzwrite.obj \
+	infback.obj \
+	inflate.obj \
+	inftrees.obj \
+	insert_string.obj \
+	insert_string_roll.obj \
+	trees.obj \
+	uncompr.obj \
+	zutil.obj \
+	adler32_c.obj \
+	adler32_fold_c.obj \
+	chunkset_c.obj \
+	compare256_c.obj \
+	crc32_braid_c.obj \
+	crc32_fold_c.obj \
+	slide_hash_c.obj \
+	x86_features.obj \
+	chunkset_sse2.obj \
+	compare256_sse2.obj \
+	slide_hash_sse2.obj \
+	adler32_ssse3.obj \
+	chunkset_ssse3.obj \
+	adler32_sse42.obj \
+	crc32_pclmulqdq.obj \
+	adler32_avx2.obj \
+	chunkset_avx2.obj \
+	compare256_avx2.obj \
+	slide_hash_avx2.obj
+
+!IF "$(AVX512)" != ""
+WFLAGS = $(WFLAGS) -DX86_AVX512 -DX86_AVX512VNNI -DX86_VPCLMULQDQ_CRC
+OBJS = $(OBJS) \
+	adler32_avx512.obj \
+	adler32_avx512_vnni.obj \
+	chunkset_avx512.obj \
+	crc32_vpclmulqdq.obj
+!ENDIF
+
+
+# targets
+all: $(STATICLIB) $(SHAREDLIB) $(IMPLIB)
+
+$(STATICLIB): $(OBJS)
+	$(AR) $(ARFLAGS) -out:$@ $(OBJS)
+
+$(IMPLIB): $(SHAREDLIB)
+
+$(SHAREDLIB): $(OBJS) $(DEFFILE) $(RESFILE)
+	$(LD) $(LDFLAGS) -def:$(DEFFILE) -dll -implib:$(IMPLIB) -out:$@ $(OBJS) $(RESFILE)
+
+$(RESFILE): $(RCFILE) zlib.h
+	$(RC) $(RCFLAGS) /fo$@ $(RCFILE)
+
+
+# generated sources.  The @ZLIB_SYMBOL_PREFIX@ substitution is done with
+# cscript and the replace.vbs helper shipped in the tarball, the same way
+# win32/Makefile.msc does it.
+zlib.h: $(TOP)/zlib.h.in
+	cscript //nologo $(TOP)\win32\replace.vbs $(TOP)\zlib.h.in zlib.h "@ZLIB_SYMBOL_PREFIX@" ""
+
+gzread.c: $(TOP)/gzread.c.in
+	cscript //nologo $(TOP)\win32\replace.vbs $(TOP)\gzread.c.in gzread.c "@ZLIB_SYMBOL_PREFIX@" ""
+
+$(DEFFILE): $(TOP)/win32/zlibcompat.def.in
+	cscript //nologo $(TOP)\win32\replace.vbs $(TOP)\win32\zlibcompat.def.in $(TOP)\win32\zlibcompat.def "@ZLIB_SYMBOL_PREFIX@" ""
+
+zconf.h: $(TOP)/zconf.h.in
+	$(CP) $(TOP)\zconf.h.in zconf.h
+
+zlib_name_mangling.h: $(TOP)/zlib_name_mangling.h.empty
+	$(CP) $(TOP)\zlib_name_mangling.h.empty zlib_name_mangling.h
+
+$(OBJS): $(GENERATED)
+
+# spelled out, so that the generated gzread.c is picked up by name instead
+# of through the inference rule below
+gzread.obj: gzread.c
+	$(CC) -c $(CFLAGS) $(WFLAGS) gzread.c
+
+
+# inference rules, one per source directory
+{$(TOP)}.c.obj:
+	$(CC) -c $(CFLAGS) $(WFLAGS) $<
+
+{$(TOP)/arch/generic}.c.obj:
+	$(CC) -c $(CFLAGS) $(WFLAGS) $<
+
+{$(TOP)/arch/x86}.c.obj:
+	$(CC) -c $(CFLAGS) $(WFLAGS) $<
+
+
+# the AVX2 and AVX-512 sources need their instruction set enabled, the rest
+# of the library must be built without it so that runtime dispatch works
+adler32_avx2.obj: $(TOP)/arch/x86/adler32_avx2.c
+	$(CC) -c $(CFLAGS) $(WFLAGS) $(AVX2FLAG) $(TOP)/arch/x86/adler32_avx2.c
+
+chunkset_avx2.obj: $(TOP)/arch/x86/chunkset_avx2.c
+	$(CC) -c $(CFLAGS) $(WFLAGS) $(AVX2FLAG) $(TOP)/arch/x86/chunkset_avx2.c
+
+compare256_avx2.obj: $(TOP)/arch/x86/compare256_avx2.c
+	$(CC) -c $(CFLAGS) $(WFLAGS) $(AVX2FLAG) $(TOP)/arch/x86/compare256_avx2.c
+
+slide_hash_avx2.obj: $(TOP)/arch/x86/slide_hash_avx2.c
+	$(CC) -c $(CFLAGS) $(WFLAGS) $(AVX2FLAG) $(TOP)/arch/x86/slide_hash_avx2.c
+
+adler32_avx512.obj: $(TOP)/arch/x86/adler32_avx512.c
+	$(CC) -c $(CFLAGS) $(WFLAGS) $(AVX512FLAG) $(TOP)/arch/x86/adler32_avx512.c
+
+adler32_avx512_vnni.obj: $(TOP)/arch/x86/adler32_avx512_vnni.c
+	$(CC) -c $(CFLAGS) $(WFLAGS) $(AVX512FLAG) $(TOP)/arch/x86/adler32_avx512_vnni.c
+
+chunkset_avx512.obj: $(TOP)/arch/x86/chunkset_avx512.c
+	$(CC) -c $(CFLAGS) $(WFLAGS) $(AVX512FLAG) $(TOP)/arch/x86/chunkset_avx512.c
+
+crc32_vpclmulqdq.obj: $(TOP)/arch/x86/crc32_vpclmulqdq.c
+	$(CC) -c $(CFLAGS) $(WFLAGS) $(AVX512FLAG) $(TOP)/arch/x86/crc32_vpclmulqdq.c
+
+
+clean:
+	-del $(STATICLIB)
+	-del $(SHAREDLIB)
+	-del $(IMPLIB)
+	-del $(GENERATED)
+	-del gzread.c
+	-del $(TOP)\win32\zlibcompat.def
+	-del *.obj
+	-del *.res
+	-del *.exp
+	-del *.pdb

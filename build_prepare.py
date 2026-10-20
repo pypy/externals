@@ -122,6 +122,22 @@ deps = {
         "libs": [r"zlib.lib"],
         "bins": [r"zlib1.dll"],
     },
+    "zlib-ng": {
+        # zlib replacement, built in zlib-compat mode so that it produces the
+        # same zlib.lib and zlib1.dll as the "zlib" target above. Based on
+        # https://github.com/python/cpython/pull/131438
+        "url": "https://github.com/python/cpython-source-deps/archive/zlib-ng-2.2.4.zip",
+        "filename": "zlib-ng-2.2.4.zip",
+        "dir": "cpython-source-deps-zlib-ng-2.2.4",
+        "build": [
+            cmd_copy(r"{winbuild_dir}\zlib-ng.nmake", r"makefile.msc"),
+            cmd_nmake(r"makefile.msc", "clean"),
+            cmd_nmake(r"makefile.msc"),
+        ],
+        "headers": ["zconf.h", "zlib.h", "zlib_name_mangling.h"],
+        "libs": [r"zlib.lib"],
+        "bins": [r"zlib1.dll"],
+    },
     "bz2": {
         "url": "https://github.com/python/cpython-source-deps/archive/bzip2-1.0.8.zip",
         "filename": "bzip2-1.0.8.zip",
@@ -490,7 +506,7 @@ if __name__ == "__main__":
     winbuild_dir = os.path.dirname(os.path.realpath(__file__))
 
     verbose = False
-    disabled = ["openssl"]
+    disabled = ["openssl", "zlib"]
     depends_dir = os.path.join(winbuild_dir, "cache")
     architecture = "x64"
     build_dir = os.path.join(winbuild_dir, "build")
@@ -507,6 +523,9 @@ if __name__ == "__main__":
         elif arg == "--openssl":
             disabled.append("openssl-cpython")
             disabled.remove("openssl")
+        elif arg == "--zlib":
+            disabled.append("zlib-ng")
+            disabled.remove("zlib")
         elif arg == "--with-tk":
             force_tk = True
         elif arg == "--no-boehm":

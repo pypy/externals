@@ -15,9 +15,22 @@ if only a newer Visual Studio version is available.
 It is also necessary to have at least one Windows XP or older SDK installed
 to build the (optional) Boehm GC.
 
+
 The binaries in this branch were built using Visual Studio 2022 Community
 version 14.0.25431.01 Update 3, and are compatible with any VS2015, VS2017, or VS2019 compiler,
 see https://docs.microsoft.com/en-us/cpp/porting/binary-compat-2015-2017?view=vs-2019.
+
+zlib-ng
+-------
+
+``build_prepare.py --zlib`` builds zlib instead of zlib-ng.
+The source and the build options are taken from
+https://github.com/python/cpython/pull/131438; see the comment at the top of
+``zlib-ng.nmake`` for where this build deviates from the CPython project file.
+
+
+libffi
+------
 
 The libffi build was done separately using the
 ``cpython\PCbuild\prepare_libffi.bat`` script::

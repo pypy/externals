@@ -1,11 +1,11 @@
-External dependencies for building PyPy on macOS arm64
-======================================================
+External dependencies for building PyPy on macOS x86_64
+=======================================================
 
 This branch holds the prebuilt headers and libraries PyPy needs that are not
 part of the macOS SDK, or where the system copy is too old or too slow.  It is
 the macOS analogue of the ``win64_14x`` branch: ``get_externals.py`` in the
 PyPy checkout clones this repo into ``<pypy>/externals`` at the branch named by
-the platform (``macos-arm64`` here, see ``externals_branch`` in
+the platform (``macos-x86-64`` here, see ``externals_branch`` in
 ``rpython/translator/platform/darwin.py``), and the buildbot runs it as the
 "fetch external dependencies" step before translating.  The darwin platform
 support then puts ``externals/include`` and ``externals/lib`` first on the

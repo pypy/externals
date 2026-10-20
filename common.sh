@@ -18,15 +18,29 @@ EXTERNALS_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 : "${DOWNLOAD_DIR:=${BUILD_DIR}/download}"
 : "${SRC_DIR:=${BUILD_DIR}/src}"
 
-: "${ARCH:=$(uname -m)}"
-# arm64 macOS starts at 11.0; keep in sync with DARWIN_VERSION_MIN in
+# This branch holds the x86_64 build; arm64 lives on the macos-arm64 branch.
+# Pinned rather than taken from uname: the buildbot builds both macOS flavours
+# on the same arm64 machine, so the host architecture says nothing about what
+# we are building here.
+: "${ARCH:=x86_64}"
+# Keep in sync with DARWIN_VERSION_MIN in
 # rpython/translator/platform/darwin.py and lib_pypy/_sysconfigdata.py.
+# arm64 macOS only starts at 11.0.
 if [ "${ARCH}" = "arm64" ]; then
     : "${MACOSX_DEPLOYMENT_TARGET:=11.0}"
 else
     : "${MACOSX_DEPLOYMENT_TARGET:=10.13}"
 fi
 export MACOSX_DEPLOYMENT_TARGET
+
+# The recipes run the test suites of what they build, so cross-building x86_64
+# on an arm64 mac needs Rosetta.  Fail early with something actionable instead
+# of in the middle of a build.
+if [ "${ARCH}" != "$(uname -m)" ] && ! arch -"${ARCH}" /usr/bin/true 2>/dev/null; then
+    echo "cannot run ${ARCH} binaries on $(uname -m):" \
+         "install Rosetta with 'softwareupdate --install-rosetta'" >&2
+    exit 1
+fi
 
 : "${JOBS:=$(sysctl -n hw.ncpu)}"
 

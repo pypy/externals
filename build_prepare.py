@@ -1,9 +1,17 @@
 r"""
-Run as python3 build_prepare.py --cpython-openssl
-then for each updated dependency run
-cmd.exe build\build_xxx.cmd
+Write the scripts that build the PyPy Windows dependencies.
+
+    python3 build_prepare.py [options]
+
+writes build\build_all.cmd, plus one build\build_<lib>.cmd per dependency,
+and then each of those has to be run:
+
+    cmd.exe /c build\build_all.cmd
+
+Run with --help for the available options.
 """
 
+import argparse
 import os
 import shutil
 import stat
@@ -498,40 +506,100 @@ def build_all():
     print("Skipped disabled targets: " + ", ".join(skipped))
 
 
+def parse_args(argv=None):
+    winbuild_dir = os.path.dirname(os.path.realpath(__file__))
+
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="dependencies, in build order:\n"
+               "    " + ", ".join(deps) + "\n\n"
+               "All of them are built by default, except for zlib: zlib-ng\n"
+               "replaces it unless --zlib is given. Tcl/Tk are skipped as well\n"
+               "when Visual Studio 2015 is not installed, see --with-tk.\n",
+    )
+    parser.add_argument(
+        "-v", "--verbose", action="store_true",
+        help="echo the generated scripts while writing them")
+    parser.add_argument(
+        "--only", metavar="LIB", action="append", default=[],
+        help="write a script for LIB only instead of for every dependency. "
+             "May be repeated, and takes a comma-separated list. This "
+             "overrides the defaults, so it also builds a dependency that is "
+             "off by default, and it keeps the existing build directory "
+             "instead of wiping it, so that sources extracted by an earlier "
+             "run are reused. Pick from: " + ", ".join(deps))
+    parser.add_argument(
+        "--architecture", choices=sorted(architectures), default="x64",
+        help="target architecture (default: %(default)s)")
+    parser.add_argument(
+        "--dir", metavar="DIR", dest="build_dir",
+        default=os.path.join(winbuild_dir, "build"),
+        help="directory to write the build scripts to "
+             "(default: %(default)s)")
+    parser.add_argument(
+        "--depends", metavar="DIR", dest="depends_dir",
+        default=os.path.join(winbuild_dir, "cache"),
+        help="directory to cache the downloaded archives in "
+             "(default: %(default)s)")
+    parser.add_argument(
+        "--zlib", action="store_true",
+        help="build zlib instead of zlib-ng")
+    parser.add_argument(
+        "--openssl", action="store_true",
+        help="do not use CPython's prebuilt OpenSSL. NOTE: this script has no "
+             "from-source OpenSSL target, so this currently means no OpenSSL "
+             "at all")
+    parser.add_argument(
+        "--with-tk", action="store_true",
+        help="build Tcl/Tk with Visual Studio 2017 or later too, see the "
+             "warning this script prints when it skips them")
+    parser.add_argument(
+        "--no-boehm", action="store_true",
+        help="skip the Boehm GC, which needs a Windows XP or older SDK")
+    args = parser.parse_args(argv)
+
+    args.winbuild_dir = winbuild_dir
+    args.build_dir = os.path.abspath(args.build_dir)
+    args.depends_dir = os.path.abspath(args.depends_dir)
+
+    # --only takes repeated and comma-separated names
+    only = []
+    for value in args.only:
+        for name in value.split(","):
+            name = name.strip()
+            if not name:
+                continue
+            if name not in deps:
+                parser.error(
+                    "unknown dependency %r for --only, pick from: %s"
+                    % (name, ", ".join(deps))
+                )
+            if name not in only:
+                only.append(name)
+    args.only = only
+
+    return args
+
+
 if __name__ == "__main__":
     if sys.version_info < (3, 6, 0):
         raise RuntimeError("This script requires Python 3.6+")
 
-    # root directory
-    winbuild_dir = os.path.dirname(os.path.realpath(__file__))
+    args = parse_args()
+    verbose = args.verbose
+    winbuild_dir = args.winbuild_dir
+    build_dir = args.build_dir
+    depends_dir = args.depends_dir
+    architecture = args.architecture
+    force_tk = args.with_tk
 
-    verbose = False
-    disabled = ["openssl", "zlib"]
-    depends_dir = os.path.join(winbuild_dir, "cache")
-    architecture = "x64"
-    build_dir = os.path.join(winbuild_dir, "build")
-    force_tk = False
-    for arg in sys.argv[1:]:
-        if arg == "-v":
-            verbose = True
-        elif arg.startswith("--depends="):
-            depends_dir = os.path.abspath(arg[10:])
-        elif arg.startswith("--architecture="):
-            architecture = arg[15:]
-        elif arg.startswith("--dir="):
-            build_dir = os.path.abspath(arg[6:])
-        elif arg == "--openssl":
-            disabled.append("openssl-cpython")
-            disabled.remove("openssl")
-        elif arg == "--zlib":
-            disabled.append("zlib-ng")
-            disabled.remove("zlib")
-        elif arg == "--with-tk":
-            force_tk = True
-        elif arg == "--no-boehm":
-            disabled.append("boehm")
-        else:
-            raise ValueError("Unknown parameter: " + arg)
+    # targets that are not built, by name in deps
+    disabled = ["zlib-ng" if args.zlib else "zlib"]
+    if args.openssl:
+        disabled.append("openssl-cpython")
+    if args.no_boehm:
+        disabled.append("boehm")
 
     # dependency cache directory
     os.makedirs(depends_dir, exist_ok=True)
@@ -540,17 +608,24 @@ if __name__ == "__main__":
     arch_prefs = architectures[architecture]
     print("Target Architecture:", architecture)
 
+    skipped_tk = False
     msvs = find_msvs2015()
     if msvs is None:
         msvs = find_msvs()
         if not force_tk:
             # see warning below
             disabled.extend(["tcl", "tk"])
+            skipped_tk = True
     if msvs is None:
         raise RuntimeError(
             "Visual Studio not found. Please install Visual Studio 2015 or newer."
         )
     print("Found Visual Studio at:", msvs["vs_dir"])
+
+    if args.only:
+        # an explicit list of targets overrides every default above
+        disabled = [name for name in deps if name not in args.only]
+        skipped_tk = False
 
     print("Using output directory:", build_dir)
 
@@ -572,7 +647,7 @@ if __name__ == "__main__":
         else:
             raise
 
-    if os.path.isdir(build_dir):
+    if os.path.isdir(build_dir) and not args.only:
         shutil.rmtree(build_dir, onerror=rmtree_onerror)
     for path in [build_dir, inc_dir, lib_dir, bin_dir, aux_dir, tcltk_dir]:
         if not os.path.exists(path):
@@ -609,7 +684,7 @@ if __name__ == "__main__":
         ],
     )
 
-    build_dep()
+    build_all()
 
     if "boehm" not in disabled:
         print()
@@ -624,7 +699,7 @@ if __name__ == "__main__":
         else:
             print("Copied ntwin32.mak and win32.mak from Windows SDK %s" % xp_sdk)
 
-    if "tk" in disabled:
+    if skipped_tk:
         print()
         print("!!! Building Tcl/Tk is disabled for Visual Studio 2017 or later, "
               "because Tk 8.5.2 requires Win SDK <= 10.0.15063.0, which is not available by default. "
@@ -634,7 +709,7 @@ if __name__ == "__main__":
               "by replacing 'call \"{}\" {{vcvars_arch}}' with 'call \"{}\" {{vcvars_arch}} <sdk_version>'."
               % os.path.basename(__file__))
 
-    if "openssl" not in disabled:
+    if args.openssl:
         if shutil.which("perl") is None:
             print()
             print("!!! perl.exe not found in PATH, compiling OpenSSL might fail.")

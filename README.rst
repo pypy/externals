@@ -6,6 +6,13 @@ then the generated script ``build\build_all.cmd``. After running the script,
 it is necessary to copy the directories ``bin``, ``lib``, and ``include``
 from the generated subdirectory ``build`` to this root directory.
 
+``build_prepare.py --help`` lists the options. To rebuild a single library,
+pass ``--only``: ``build_prepare.py --only sqlite3`` writes just
+``build\build_sqlite3.cmd``, and leaves the rest of the ``build`` directory
+alone, where a plain run recreates it from scratch. ``--only`` takes a
+comma-separated list, and overrides the defaults, so it builds a target that
+is off by default too.
+
 This script is based on the instructions in the ``win64_14x`` branch.
 
 Due to https://core.tcl-lang.org/tk/tktview?name=3d34589aa0, the script will
